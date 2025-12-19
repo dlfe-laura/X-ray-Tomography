@@ -18,21 +18,44 @@ slice2(:,:) = data(:,100,:);
 slice3(:,:) = data(:,:,200);
 
 figure(1)
-subplot(1,3,1)
+% Create a layout grid: 1 row, 3 columns
+t = tiledlayout(1,3); 
+t.TileSpacing = 'compact';
+t.Padding = 'compact';
+
+% --- Slice 1 ---
+nexttile
 pcolor(slice1')
 shading flat
 daspect([1 1 1])
-subplot(1,3,2)
+clim([0 1]) % Locks color range (0=Black, 1=White)
+title('XZ')
+
+% --- Slice 2 ---
+nexttile
 pcolor(slice2')
 shading flat
 daspect([1 1 1])
-subplot(1,3,3)
+clim([0 1]) % Locks color range
+title('YZ')
+
+% --- Slice 3 ---
+nexttile
 pcolor(slice3')
 shading flat
 daspect([1 1 1])
+clim([0 1]) % Locks color range
+title('XY')
 
-% change colormap (if you want to!)
+% --- Shared Settings ---
 colormap(hot)
+
+% Add the shared colorbar to the layout (puts it on the right)
+cb = colorbar;
+cb.Layout.Tile = 'east'; 
+cb.Label.String = 'Phase Presence (0=No, 1=Yes)';
+%%
+volumeViewer(data)
 
 %%
 % make histogram of grey-scale values to see different intensities
@@ -44,6 +67,8 @@ histogram(data,1000)
 % define yscale as logarithmic to see
 %smaller peaks in histogram
 set(gca,'YScale','log')
+xlabel('Grey-scale value')
+ylabel('Intensity (a.u)')
 
 %% This is an image with zeros in the background and ones in the sample region
 
@@ -51,11 +76,19 @@ mask = data;
 mask(mask>0.001) = 1;
 mask = uint8(mask);
 
+%% FIND THE REAL VALUES
+% Pick a slice in the middle of your sample
+mid_slice = data(:,:,100); 
 
+% Open a tool to inspect pixel values
+figure(99)
+imshow(mid_slice, []) % Display with auto-scaling
+title('HOVER over material to see values ->')
+impixelinfo; % <--- This adds a tool at the bottom left
 %% THRESHOLDS
 
 threshold_high = 0.82;
-threshold_low= 0.5405;
+threshold_low= 0.5055; % 0.5405;
 
 %% MASKS
 
@@ -65,14 +98,21 @@ mask_med = data > threshold_low & data <= threshold_high;
 
 mask_low = data < threshold_low & (mask == 1);
 
+mask_study = data > 0.5055;
+
 % Uncomment which one is needed to be analyzed
-bin = mask_high; % For bright pieces
-%bin = mask_med; % For main material
+%bin = mask_high; % For bright pieces
+bin = mask_med; % For main material
 %bin = mask_low; % For "pores"
+%bin = mask_study;
 
 % change format to uint8, which makes some things easier later on
 bin = uint8(bin);
 
+%% 3D view of bin
+CC = bwconncomp(bin);
+L = labelmatrix(CC);
+volumeViewer(L)
 %%
 
 % extract and plot slices through volume
@@ -81,64 +121,39 @@ slice2(:,:) = bin(:,100,:);
 slice3(:,:) = bin(:,:,200);
 
 figure(4)
-subplot(1,3,1)
+% Create a layout grid: 1 row, 3 columns
+t = tiledlayout(1,3); 
+t.TileSpacing = 'compact';
+t.Padding = 'compact';
+
+% --- Slice 1 ---
+nexttile
 pcolor(slice1')
 shading flat
 daspect([1 1 1])
-subplot(1,3,2)
+clim([0 1]) % Locks color range (0=Black, 1=White)
+title('XZ')
+
+% --- Slice 2 ---
+nexttile
 pcolor(slice2')
 shading flat
 daspect([1 1 1])
-subplot(1,3,3)
+clim([0 1]) % Locks color range
+title('YZ')
+
+% --- Slice 3 ---
+nexttile
 pcolor(slice3')
 shading flat
 daspect([1 1 1])
+clim([0 1]) % Locks color range
+title('XY')
 
-% change colormap (if you want to!)
+% --- Shared Settings ---
 colormap(hot)
 
-%%
-% get rid of isolated points in binary
-bin2 = bwareaopen(bin,4500); % filters out shapes with less than 4500 px away from the binary
-
-% Calculate the distance map for the watershed transform
-D1 = bwdist(bin2); % creates a topographic map where farther away px from boudnaries get higher values (peak)
-% multiple the image by the “mask” to get rid of regions outside the sample
-D1 = D1.*single(mask); % force values outside the ROI to become zero
-
-% filter out local maxima
-D2 = imhmax(D1,5); % supresses shallow peaks in the distance map
-L = watershed(-D2); % watershed finds the minima. by - the D2 we turn peaks into valleys allowing the watershed to fill them up and find the boundaries
-% Fix for the .* error:
-labels = uint16(L) .* uint16(mask); % converts the output L and mask into integers. any px where mask is 0 becomes 0
-
-%%
-
-% count number of pixels in each label (volume):
-stats = regionprops3(labels, 'SurfaceArea','Volume');
-volume = cat(1, stats.Volume);
-surfaceArea = cat(1, stats.SurfaceArea);
-
-%%
-
-% Figure for volume
-figure(6)
-histogram(volume, 50) % 50 bins is usually a good starting point
-title('Distribution of Pore Volumes')
-xlabel('Volume (pixels^3)')
-ylabel('Frequency')
-grid on
-set(gca, 'YScale', 'log')
-
-% Figure for Surface Area
-figure(7)
-histogram(surfaceArea, 50)
-title('Distribution of Pore Surface Areas')
-xlabel('Surface Area (pixels^2)')
-ylabel('Frequency')
-grid on
-set(gca, 'YScale', 'log')
-
-%%
-
-volumeViewer(labels)
+% Add the shared colorbar to the layout (puts it on the right)
+cb = colorbar;
+cb.Layout.Tile = 'east'; 
+cb.Label.String = 'Phase Presence (0=No, 1=Yes)';
